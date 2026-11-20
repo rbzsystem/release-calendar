@@ -1,0 +1,47 @@
+name: Deploy Release Calendar
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one deploy at a time; don't cancel in-progress (let it finish).
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+  deploy:
+    environment:
+      name: github-pages
+      url: https://rbzsystem.github.io/release-calendar/
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy (attempt 1)
+        id: attempt1
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        if: steps.attempt1.outcome == 'failure'
+        run: |
+          echo "Attempt 1 timed out — waiting 30s before retry"
+          sleep 30
+
+      - name: Deploy (attempt 2)
+        if: steps.attempt1.outcome == 'failure'
+        uses: actions/deploy-pages@v4
